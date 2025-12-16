@@ -1,10 +1,12 @@
-# Environment variables (contains API keys)
+# Environment variables and secrets
 .env
 
-# Output files
-output/
+# Database files
+*.db
+*.sqlite
+*.sqlite3
 
-# Python
+# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
@@ -21,11 +23,14 @@ ENV/
 .idea/
 *.swp
 *.swo
-*~
 
-# OS
+# Output files (can be regenerated)
+output/
+
+# OS files
 .DS_Store
 Thumbs.db
 
-# Claude Code
-.claude/
+# Temporary files
+*.log
+*.tmp
