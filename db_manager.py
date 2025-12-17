@@ -101,7 +101,7 @@ class DatabaseManager:
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Youtuber_Financial_Data (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                video_id TEXT NOT NULL,
+                video_id TEXT NOT NULL UNIQUE,
                 stock_ticker TEXT,
                 like_number INTEGER,
                 comment_number INTEGER,
@@ -247,7 +247,7 @@ class DatabaseManager:
         """新增 Gemini 財務分析資料"""
         try:
             self.cursor.execute("""
-                INSERT INTO Youtuber_Financial_Data (
+                INSERT OR IGNORE INTO Youtuber_Financial_Data (
                     video_id, stock_ticker, like_number, comment_number,
                     view_number, text_type, video_sentiment,
                     comment_sentiment, financial_ratio, celebrity, relevancy,

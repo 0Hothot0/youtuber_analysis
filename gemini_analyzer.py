@@ -225,7 +225,7 @@ class GeminiVideoAnalyzer:
 
             # 插入資料庫
             db.cursor.execute("""
-                INSERT INTO Youtuber_Financial_Data (
+                INSERT OR IGNORE INTO Youtuber_Financial_Data (
                     video_id, stock_ticker, like_number, comment_number,
                     view_number, published_time,
                     text_type, video_sentiment, financial_ratio, celebrity,
