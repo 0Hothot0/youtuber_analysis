@@ -185,9 +185,9 @@ class GeminiVideoAnalyzer:
             是否儲存成功
         """
         try:
-            # 從資料庫取得影片的 like_count 和 comment_count
+            # 從資料庫取得影片的資訊
             db.cursor.execute(
-                "SELECT like_count, comment_count FROM videos WHERE video_id = ?",
+                "SELECT like_count, comment_count, view_count, published_at FROM videos WHERE video_id = ?",
                 (video_id,)
             )
             video_data = db.cursor.fetchone()
@@ -202,6 +202,8 @@ class GeminiVideoAnalyzer:
                 'stock_ticker': analysis.get('stock_ticker'),
                 'like_number': video_data['like_count'],
                 'comment_number': video_data['comment_count'],
+                'view_number': video_data['view_count'],
+                'published_time': video_data['published_at'],
                 'text_type': analysis.get('text_type', 0),
                 'video_sentiment': analysis.get('video_sentiment', 0.0),
                 'financial_ratio': analysis.get('financial_ratio', 0.0),
@@ -225,17 +227,20 @@ class GeminiVideoAnalyzer:
             db.cursor.execute("""
                 INSERT INTO Youtuber_Financial_Data (
                     video_id, stock_ticker, like_number, comment_number,
+                    view_number, published_time,
                     text_type, video_sentiment, financial_ratio, celebrity,
                     relevancy, long_term_competitiveness, short_term_focus,
                     ceo_leadership_style, earnings_expectation_gap,
                     stock_price_growth_trend, market_demand, market_capitalization,
                     target_price, financial_health, valuation, policy_impact, raw_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 financial_data['video_id'],
                 financial_data['stock_ticker'],
                 financial_data['like_number'],
                 financial_data['comment_number'],
+                financial_data['view_number'],
+                financial_data['published_time'],
                 financial_data['text_type'],
                 financial_data['video_sentiment'],
                 financial_data['financial_ratio'],

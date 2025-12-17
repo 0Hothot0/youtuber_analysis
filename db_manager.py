@@ -105,7 +105,6 @@ class DatabaseManager:
                 stock_ticker TEXT,
                 like_number INTEGER,
                 comment_number INTEGER,
-                forward_number INTEGER,
                 view_number INTEGER,
                 text_type INTEGER,
                 video_sentiment REAL,
@@ -250,19 +249,18 @@ class DatabaseManager:
             self.cursor.execute("""
                 INSERT INTO Youtuber_Financial_Data (
                     video_id, stock_ticker, like_number, comment_number,
-                    forward_number, view_number, text_type, video_sentiment,
+                    view_number, text_type, video_sentiment,
                     comment_sentiment, financial_ratio, celebrity, relevancy,
                     published_time, long_term_competitiveness, short_term_focus,
                     ceo_leadership_style, earnings_expectation_gap,
                     stock_price_growth_trend, market_demand, market_capitalization,
                     target_price, financial_health, valuation, policy_impact, raw_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 data.get('video_id'),
                 data.get('stock_ticker'),
                 data.get('like_number'),
                 data.get('comment_number'),
-                data.get('forward_number'),
                 data.get('view_number'),
                 data.get('text_type'),
                 data.get('video_sentiment'),

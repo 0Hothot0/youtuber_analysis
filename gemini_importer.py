@@ -45,7 +45,6 @@ def normalize_financial_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         'stock_ticker': raw_data.get('stock_ticker'),
         'like_number': raw_data.get('like_number'),
         'comment_number': raw_data.get('comment_number'),
-        'forward_number': raw_data.get('forward_number'),
         'view_number': raw_data.get('view_number'),
         'text_type': raw_data.get('text_type'),
         'video_sentiment': raw_data.get('video_sentiment'),

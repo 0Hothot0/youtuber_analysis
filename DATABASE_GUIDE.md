@@ -69,7 +69,6 @@ db.close()
   "stock_ticker": "AAPL",
   "like_number": 932,
   "comment_number": 217,
-  "forward_number": 0,
   "view_number": 25039,
   "text_type": 1,
   "video_sentiment": 0.8,
@@ -175,7 +174,6 @@ JOIN videos v ON f.video_id = v.video_id;
 | stock_ticker | TEXT | - | 股票代碼 |
 | like_number | INTEGER | - | 按讚數 |
 | comment_number | INTEGER | - | 評論數 |
-| forward_number | INTEGER | - | 轉發數 |
 | view_number | INTEGER | - | 觀看數 |
 | text_type | INTEGER | 0/1 | 0=社會聯繫導向, 1=功能導向 |
 | video_sentiment | REAL | -1~1 | 影片情感分數 |
