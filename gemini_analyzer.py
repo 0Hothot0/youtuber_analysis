@@ -7,6 +7,7 @@ import os
 import json
 import time
 import argparse
+import uuid
 from typing import Optional, Dict, List
 from dotenv import load_dotenv
 from google import genai
@@ -16,53 +17,77 @@ from db_manager import DatabaseManager
 # 載入環境變數
 load_dotenv()
 
-# 定義分析 prompt - 針對 Youtuber_Financial_Data 表的 23 個欄位
+# 定義分析 prompt - 支援多股票分析
 ANALYSIS_PROMPT = """
-請仔細分析這個 YouTube 財經影片，並以 JSON 格式輸出以下欄位。請確保回傳的是有效的 JSON 格式，不要包含任何其他文字或說明。
+Analyze this YouTube financial video and identify ALL PRIMARY stocks discussed.
 
-請分析影片內容並返回以下 JSON 結構（請只回傳 JSON，不要有其他文字）：
+PRIMARY stocks are those that meet at least one condition:
+- The host spends significant time discussing it
+- The video includes analysis, data, charts, earnings, or price commentary about it
+- The stock is part of the main topic or title of the video
 
-{
-  "stock_ticker": "影片主要討論的股票代碼（例如 AAPL, TSLA, NVDA），如果沒有明確提及則為 null",
-  "text_type": 1,
-  "video_sentiment": 0.5,
-  "financial_ratio": 0.5,
-  "celebrity": 0,
-  "relevancy": 0.5,
-  "long_term_competitiveness": 0,
-  "short_term_focus": 0,
-  "ceo_leadership_style": 0,
-  "earnings_expectation_gap": 0.0,
-  "stock_price_growth_trend": 0.0,
-  "market_demand": 0.0,
-  "market_capitalization": 0,
-  "target_price": 0,
-  "financial_health": 0.0,
-  "valuation": 0.0,
-  "policy_impact": 0.0
-}
+IGNORE casually mentioned stocks (brief mentions, comparisons, examples without analysis).
 
-欄位說明：
-1. stock_ticker (TEXT): 股票代碼，例如 "AAPL", "TSLA"
-2. text_type (INTEGER): 1 = 功能導向（分析、數據、事實）, 0 = 社會聯繫導向（意見、觀點）
-3. video_sentiment (REAL): 影片整體情感 -1（極度負面）到 1（極度正面）
-4. financial_ratio (REAL): 財務相關元素比例 0 到 1
-5. celebrity (INTEGER): 1 = 提及名人或知名投資者, 0 = 沒有
-6. relevancy (REAL): 核心訊息相關性 0 到 1
-7. long_term_competitiveness (INTEGER): 1 = 強調長期競爭力, 0 = 沒有
-8. short_term_focus (INTEGER): 1 = 專注短期市場, 0 = 沒有
-9. ceo_leadership_style (INTEGER): 1 = 提及 CEO 管理風格, 0 = 沒有
-10. earnings_expectation_gap (REAL): 收益預期差距 -1（遠低於預期）到 1（遠高於預期）
-11. stock_price_growth_trend (REAL): 股價趨勢 -1（下跌）到 1（上漲）
-12. market_demand (REAL): 市場需求 -1（低）到 1（高）
-13. market_capitalization (INTEGER): 1 = 提及市值, 0 = 沒有
-14. target_price (INTEGER): 1 = 提及目標價, 0 = 沒有
-15. financial_health (REAL): 財務健康度 -1（差）到 1（優）
-16. valuation (REAL): 估值評估 -1（高估）到 1（低估）
-17. policy_impact (REAL): 政策影響 -1（負面）到 1（正面）
+Return a JSON array. For EACH primary stock, provide one complete entry.
+If NO primary stocks are found, return: []
 
-請根據影片內容客觀評估這些指標。如果某個指標在影片中沒有明確提及，請使用 0 或 0.0 作為中性值。
-只輸出 JSON，不要包含任何其他說明文字。
+Return ONLY valid JSON, no other text:
+
+[
+  {
+    "stock_ticker": "SYMBOL",
+    "text_type": 0,
+    "video_sentiment": 0.0,
+    "financial_ratio": 0.0,
+    "celebrity": 0,
+    "relevancy": 0.0,
+    "long_term_competitiveness": 0,
+    "short_term_focus": 0,
+    "ceo_leadership_style": 0,
+    "earnings_expectation_gap": 0.0,
+    "stock_price_growth_trend": 0.0,
+    "market_demand": 0.0,
+    "market_capitalization": 0,
+    "target_price": 0,
+    "financial_health": 0.0,
+    "valuation": 0.0,
+    "policy_impact": 0.0
+  }
+]
+
+Field definitions:
+1. stock_ticker (TEXT): Stock symbol (e.g., "AAPL", "TSLA", "NVDA"). Required.
+2. text_type (INTEGER): 1=functional (analysis/data/facts), 0=social-bond (opinion/views)
+3. video_sentiment (REAL): -1 (very negative) to 1 (very positive), 0=neutral/no mention
+4. financial_ratio (REAL): 0 to 1, proportion of financial elements (charts, numbers, terms)
+5. celebrity (INTEGER): 1=mentions famous investors/CEOs, 0=none
+6. relevancy (REAL): 0 to 1, relevance between video content and core stock message
+7. long_term_competitiveness (INTEGER): 1=discusses long-term growth/industry trends, 0=no
+8. short_term_focus (INTEGER): 1=focuses on recent news/short-term catalysts, 0=no
+9. ceo_leadership_style (INTEGER): 1=mentions CEO management style/vision, 0=no
+10. earnings_expectation_gap (REAL): -1 to 1, -1=below expectations, 0=neutral, 1=above
+11. stock_price_growth_trend (REAL): -1 to 1, -1=declining, 0=neutral, 1=growing
+12. market_demand (REAL): -1 to 1, -1=weak demand, 0=neutral, 1=strong demand
+13. market_capitalization (INTEGER): 1=mentions market cap, 0=no
+14. target_price (INTEGER): 1=mentions analyst price target, 0=no
+15. financial_health (REAL): -1 to 1, -1=weak, 0=neutral, 1=strong
+16. valuation (REAL): -1 to 1, -1=overvalued, 0=fairly priced, 1=undervalued
+17. policy_impact (REAL): -1 to 1, -1=negative policy impact, 0=neutral, 1=positive
+
+CRITICAL: If a metric is not mentioned in the video, use 0 or 0.0. Do NOT infer or assume values.
+"""
+
+COMMENT_SENTIMENT_PROMPT = """
+Analyze the overall sentiment of the following YouTube video comments about financial/stock content.
+
+Return ONLY a single floating-point number between -1 and 1:
+- -1.0 = Very negative sentiment
+- 0.0 = Neutral or mixed sentiment
+- 1.0 = Very positive sentiment
+
+IMPORTANT: Return ONLY the number, no other text. Example: 0.35
+
+Comments to analyze:
 """
 
 
@@ -94,7 +119,7 @@ class GeminiVideoAnalyzer:
             print(f"✗ 初始化 Gemini 客戶端失敗: {e}")
             raise
 
-    def analyze_video(self, youtube_url: str, max_retries: int = 3) -> Optional[Dict]:
+    def analyze_video(self, youtube_url: str, max_retries: int = 3) -> List[Dict]:
         """
         分析單一 YouTube 影片
 
@@ -103,7 +128,7 @@ class GeminiVideoAnalyzer:
             max_retries: 最大重試次數
 
         Returns:
-            分析結果的字典，失敗則返回 None
+            分析結果的列表（每個股票一個 dict），失敗則返回空列表
         """
         print(f"\n分析影片: {youtube_url}")
 
@@ -144,9 +169,29 @@ class GeminiVideoAnalyzer:
                 response_text = response_text.strip()
 
                 result = json.loads(response_text)
-                result['raw_json'] = response_text
 
-                print(f"  ✓ 成功分析影片")
+                # Handle both array and single object responses
+                if isinstance(result, dict):
+                    result = [result]  # Wrap single object in array for backward compatibility
+
+                # Validate it's a list
+                if not isinstance(result, list):
+                    print(f"  ✗ 無效的回應格式：應該是陣列，但收到 {type(result)}")
+                    if attempt < max_retries - 1:
+                        wait_time = 2 ** attempt
+                        print(f"  等待 {wait_time} 秒後重試...")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        print(f"  已達最大重試次數，放棄此影片")
+                        return []
+
+                # Add raw_json to each result
+                raw_json_str = json.dumps(result, ensure_ascii=False)
+                for item in result:
+                    item['raw_json'] = raw_json_str
+
+                print(f"  ✓ 成功分析影片，找到 {len(result)} 個主要股票")
                 return result
 
             except json.JSONDecodeError as e:
@@ -158,7 +203,7 @@ class GeminiVideoAnalyzer:
                     time.sleep(wait_time)
                 else:
                     print(f"  已達最大重試次數，放棄此影片")
-                    return None
+                    return []
 
             except Exception as e:
                 print(f"  ✗ 分析失敗: {e}")
@@ -168,23 +213,30 @@ class GeminiVideoAnalyzer:
                     time.sleep(wait_time)
                 else:
                     print(f"  已達最大重試次數，放棄此影片")
-                    return None
+                    return []
 
-        return None
+        return []
 
-    def save_analysis_to_db(self, video_id: str, analysis: Dict, db: DatabaseManager) -> bool:
+    def save_analysis_to_db(self, video_id: str, analyses: List[Dict], db: DatabaseManager) -> int:
         """
         將分析結果儲存到資料庫
 
         Args:
             video_id: YouTube 影片 ID
-            analysis: 分析結果字典
+            analyses: 分析結果列表（每個股票一個字典）
             db: 資料庫管理器實例
 
         Returns:
-            是否儲存成功
+            成功儲存的記錄數量
         """
+        if not analyses:
+            print(f"  ⚠ 影片 {video_id} 沒有找到主要股票")
+            return 0
+
         try:
+            # 為此影片生成一個 UUID（所有股票共用）
+            video_uuid = str(uuid.uuid4())
+
             # 從資料庫取得影片的資訊
             db.cursor.execute(
                 "SELECT like_count, comment_count, view_count, published_at FROM videos WHERE video_id = ?",
@@ -194,79 +246,114 @@ class GeminiVideoAnalyzer:
 
             if not video_data:
                 print(f"  ✗ 找不到影片 {video_id} 在資料庫中")
-                return False
+                return 0
 
-            # 準備插入資料
-            financial_data = {
-                'video_id': video_id,
-                'stock_ticker': analysis.get('stock_ticker'),
-                'like_number': video_data['like_count'],
-                'comment_number': video_data['comment_count'],
-                'view_number': video_data['view_count'],
-                'published_time': video_data['published_at'],
-                'text_type': analysis.get('text_type', 0),
-                'video_sentiment': analysis.get('video_sentiment', 0.0),
-                'financial_ratio': analysis.get('financial_ratio', 0.0),
-                'celebrity': analysis.get('celebrity', 0),
-                'relevancy': analysis.get('relevancy', 0.0),
-                'long_term_competitiveness': analysis.get('long_term_competitiveness', 0),
-                'short_term_focus': analysis.get('short_term_focus', 0),
-                'ceo_leadership_style': analysis.get('ceo_leadership_style', 0),
-                'earnings_expectation_gap': analysis.get('earnings_expectation_gap', 0.0),
-                'stock_price_growth_trend': analysis.get('stock_price_growth_trend', 0.0),
-                'market_demand': analysis.get('market_demand', 0.0),
-                'market_capitalization': analysis.get('market_capitalization', 0),
-                'target_price': analysis.get('target_price', 0),
-                'financial_health': analysis.get('financial_health', 0.0),
-                'valuation': analysis.get('valuation', 0.0),
-                'policy_impact': analysis.get('policy_impact', 0.0),
-                'raw_json': analysis.get('raw_json', json.dumps(analysis))
-            }
+            success_count = 0
 
-            # 插入資料庫
-            db.cursor.execute("""
-                INSERT OR IGNORE INTO Youtuber_Financial_Data (
-                    video_id, stock_ticker, like_number, comment_number,
-                    view_number, published_time,
-                    text_type, video_sentiment, financial_ratio, celebrity,
-                    relevancy, long_term_competitiveness, short_term_focus,
-                    ceo_leadership_style, earnings_expectation_gap,
-                    stock_price_growth_trend, market_demand, market_capitalization,
-                    target_price, financial_health, valuation, policy_impact, raw_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                financial_data['video_id'],
-                financial_data['stock_ticker'],
-                financial_data['like_number'],
-                financial_data['comment_number'],
-                financial_data['view_number'],
-                financial_data['published_time'],
-                financial_data['text_type'],
-                financial_data['video_sentiment'],
-                financial_data['financial_ratio'],
-                financial_data['celebrity'],
-                financial_data['relevancy'],
-                financial_data['long_term_competitiveness'],
-                financial_data['short_term_focus'],
-                financial_data['ceo_leadership_style'],
-                financial_data['earnings_expectation_gap'],
-                financial_data['stock_price_growth_trend'],
-                financial_data['market_demand'],
-                financial_data['market_capitalization'],
-                financial_data['target_price'],
-                financial_data['financial_health'],
-                financial_data['valuation'],
-                financial_data['policy_impact'],
-                financial_data['raw_json']
-            ))
+            for analysis in analyses:
+                stock_ticker = analysis.get('stock_ticker')
+                if not stock_ticker:
+                    print(f"    ⚠ 跳過無股票代碼的記錄")
+                    continue
 
-            db.conn.commit()
-            print(f"  ✓ 分析結果已儲存到資料庫")
-            return True
+                # 準備插入資料
+                financial_data = {
+                    'video_uuid': video_uuid,
+                    'video_id': video_id,
+                    'stock_ticker': stock_ticker,
+                    'like_number': video_data['like_count'],
+                    'comment_number': video_data['comment_count'],
+                    'view_number': video_data['view_count'],
+                    'published_time': video_data['published_at'],
+                    'text_type': analysis.get('text_type', 0),
+                    'video_sentiment': analysis.get('video_sentiment', 0.0),
+                    'comment_sentiment': 0,  # 固定為 0，無法分析留言
+                    'financial_ratio': analysis.get('financial_ratio', 0.0),
+                    'celebrity': analysis.get('celebrity', 0),
+                    'relevancy': analysis.get('relevancy', 0.0),
+                    'long_term_competitiveness': analysis.get('long_term_competitiveness', 0),
+                    'short_term_focus': analysis.get('short_term_focus', 0),
+                    'ceo_leadership_style': analysis.get('ceo_leadership_style', 0),
+                    'earnings_expectation_gap': analysis.get('earnings_expectation_gap', 0.0),
+                    'stock_price_growth_trend': analysis.get('stock_price_growth_trend', 0.0),
+                    'market_demand': analysis.get('market_demand', 0.0),
+                    'market_capitalization': analysis.get('market_capitalization', 0),
+                    'target_price': analysis.get('target_price', 0),
+                    'financial_health': analysis.get('financial_health', 0.0),
+                    'valuation': analysis.get('valuation', 0.0),
+                    'policy_impact': analysis.get('policy_impact', 0.0),
+                    'raw_json': analysis.get('raw_json', json.dumps(analysis, ensure_ascii=False))
+                }
+
+                try:
+                    # 使用 db_manager 的方法插入
+                    result = db.insert_financial_data(financial_data)
+                    if result:
+                        success_count += 1
+                        print(f"    ✓ 已儲存: {stock_ticker}")
+                    else:
+                        print(f"    ⚠ 略過（已存在）: {stock_ticker}")
+                except Exception as e:
+                    print(f"    ✗ 插入 {stock_ticker} 失敗: {e}")
+
+            print(f"  ✓ 成功儲存 {success_count}/{len(analyses)} 個股票分析")
+            return success_count
 
         except Exception as e:
             print(f"  ✗ 儲存到資料庫失敗: {e}")
-            return False
+            return 0
+
+    def analyze_comment_sentiment(self, comments_text: str, max_retries: int = 3) -> Optional[float]:
+        """
+        分析留言情緒
+
+        Args:
+            comments_text: 合併的留言文字
+            max_retries: 最大重試次數
+
+        Returns:
+            float: 情緒分數 (-1 到 1)，或 None（分析失敗）
+        """
+        if not comments_text or not comments_text.strip():
+            return 0.0  # 無留言 = 中性
+
+        # 截斷過長的留言（避免超出 token 限制）
+        max_chars = 30000
+        if len(comments_text) > max_chars:
+            comments_text = comments_text[:max_chars]
+            print(f"  ⚠ 留言過長，截斷至 {max_chars} 字元")
+
+        for attempt in range(max_retries):
+            try:
+                full_prompt = COMMENT_SENTIMENT_PROMPT + "\n" + comments_text
+
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=[full_prompt],
+                    config=GenerateContentConfig(
+                        temperature=0.1,
+                        max_output_tokens=10
+                    )
+                )
+
+                # 解析回應（只取數字）
+                response_text = response.text.strip()
+                cleaned = ''.join(c for c in response_text if c in '-0123456789.')
+                sentiment_score = float(cleaned)
+
+                # 限制範圍
+                return max(-1.0, min(1.0, sentiment_score))
+
+            except Exception as e:
+                print(f"  ✗ 情緒分析失敗 (嘗試 {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt
+                    print(f"  等待 {wait_time} 秒後重試...")
+                    time.sleep(wait_time)
+                else:
+                    return None
+
+        return None
 
 
 def analyze_single_video(analyzer: GeminiVideoAnalyzer, video_id: str, db: DatabaseManager):
@@ -288,24 +375,25 @@ def analyze_single_video(analyzer: GeminiVideoAnalyzer, video_id: str, db: Datab
     print(f"  標題: {video['title']}")
     print(f"  URL: {video['url']}")
 
-    # 檢查是否已分析過
+    # 檢查是否已分析過（只要有任何記錄就算已分析）
     db.cursor.execute(
-        "SELECT id FROM Youtuber_Financial_Data WHERE video_id = ?",
+        "SELECT COUNT(*) FROM Youtuber_Financial_Data WHERE video_id = ?",
         (video_id,)
     )
-    if db.cursor.fetchone():
-        print(f"\n⚠ 此影片已分析過，跳過")
+    count = db.cursor.fetchone()[0]
+    if count > 0:
+        print(f"\n⚠ 此影片已分析過（有 {count} 筆記錄），跳過")
         return
 
     # 分析影片
-    analysis = analyzer.analyze_video(video['url'])
+    analyses = analyzer.analyze_video(video['url'])
 
-    if analysis:
+    if analyses:
         # 儲存結果
-        analyzer.save_analysis_to_db(video_id, analysis, db)
-        print(f"\n✓ 分析完成")
+        saved_count = analyzer.save_analysis_to_db(video_id, analyses, db)
+        print(f"\n✓ 分析完成，儲存 {saved_count} 個股票")
     else:
-        print(f"\n✗ 分析失敗")
+        print(f"\n✗ 分析失敗或未找到主要股票")
 
 
 def analyze_batch(analyzer: GeminiVideoAnalyzer, db: DatabaseManager,
@@ -367,11 +455,12 @@ def analyze_batch(analyzer: GeminiVideoAnalyzer, db: DatabaseManager,
         print(f"  Video ID: {video['video_id']}")
 
         # 分析影片
-        analysis = analyzer.analyze_video(video['url'])
+        analyses = analyzer.analyze_video(video['url'])
 
-        if analysis:
+        if analyses:
             # 儲存結果
-            if analyzer.save_analysis_to_db(video['video_id'], analysis, db):
+            saved_count = analyzer.save_analysis_to_db(video['video_id'], analyses, db)
+            if saved_count > 0:
                 success_count += 1
             else:
                 fail_count += 1

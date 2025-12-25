@@ -8,7 +8,7 @@ import os
 import sys
 import json
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import isodate
 import pandas as pd
@@ -31,13 +31,14 @@ class YouTubeSearcher:
         except Exception as e:
             raise Exception(f"❌ YouTube API 初始化失敗: {str(e)}")
 
-    def search_videos(self, keyword, max_results=10):
+    def search_videos(self, keyword, max_results=10, min_age_years=2):
         """
         搜尋影片
 
         Args:
             keyword: 搜尋關鍵字
             max_results: 最大結果數量（預設 10）
+            min_age_years: 最小影片年齡（預設 2 年）
 
         Returns:
             list: 影片 ID 列表
@@ -45,13 +46,19 @@ class YouTubeSearcher:
         try:
             print(f"\n🔍 搜尋關鍵字: '{keyword}'")
 
+            # 計算過濾日期（N 年前）
+            cutoff_date = datetime.now() - timedelta(days=min_age_years*365)
+            published_before = cutoff_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+            print(f"📅 過濾條件: 只搜尋 {cutoff_date.strftime('%Y-%m-%d')} 之前發布的影片")
+
             # 使用 search.list API 搜尋影片
             search_response = self.youtube.search().list(
                 q=keyword,
                 type='video',
                 part='id,snippet',
                 maxResults=max_results,
-                order='relevance'  # 按相關性排序
+                order='relevance',  # 按相關性排序
+                publishedBefore=published_before  # 只搜尋指定日期之前的影片
             ).execute()
 
             video_ids = []
@@ -131,6 +138,55 @@ class YouTubeSearcher:
         except Exception as e:
             print(f"❌ 取得影片詳細資訊時發生錯誤: {str(e)}")
             return []
+
+    def get_video_comments(self, video_id, max_comments=None):
+        """
+        使用分頁抓取影片的所有留言
+
+        Args:
+            video_id: YouTube 影片 ID
+            max_comments: 最大留言數（None = 全部）
+
+        Returns:
+            str: 合併的留言文字，或 None（留言被關閉）
+        """
+        try:
+            all_comments = []
+            next_page_token = None
+
+            while True:
+                request_params = {
+                    'part': 'snippet',
+                    'videoId': video_id,
+                    'maxResults': 100,
+                    'textFormat': 'plainText',
+                    'order': 'relevance'
+                }
+
+                if next_page_token:
+                    request_params['pageToken'] = next_page_token
+
+                response = self.youtube.commentThreads().list(**request_params).execute()
+
+                for item in response.get('items', []):
+                    comment_text = item['snippet']['topLevelComment']['snippet']['textDisplay']
+                    all_comments.append(comment_text)
+
+                    if max_comments and len(all_comments) >= max_comments:
+                        break
+
+                next_page_token = response.get('nextPageToken')
+                if not next_page_token or (max_comments and len(all_comments) >= max_comments):
+                    break
+
+            return "\n".join(all_comments) if all_comments else ""
+
+        except Exception as e:
+            error_str = str(e)
+            if 'commentsDisabled' in error_str or '403' in error_str:
+                return None  # 留言被關閉
+            print(f"  Error fetching comments: {e}")
+            return None
 
     def save_results(self, videos_data, keyword):
         """
@@ -281,6 +337,7 @@ def main():
     parser.add_argument('--save-db', action='store_true', help='儲存結果至資料庫')
     parser.add_argument('--youtuber', type=str, help='指定 YouTuber 名稱（用於資料庫關聯）')
     parser.add_argument('--max-results', type=int, default=10, help='最大結果數量（預設 10）')
+    parser.add_argument('--min-age', type=int, default=2, help='最小影片年齡（單位：年，預設 2 年）')
 
     args = parser.parse_args()
 
@@ -308,7 +365,7 @@ def main():
         searcher = YouTubeSearcher(api_key)
 
         # 搜尋影片
-        video_ids = searcher.search_videos(keyword, max_results=args.max_results)
+        video_ids = searcher.search_videos(keyword, max_results=args.max_results, min_age_years=args.min_age)
 
         if not video_ids:
             print("\n⚠️ 未找到任何影片")
