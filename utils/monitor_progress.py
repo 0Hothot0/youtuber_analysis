@@ -3,8 +3,14 @@
 監控 Gemini 分析進度
 """
 
+import sys
 import time
-from db_manager import DatabaseManager
+from pathlib import Path
+
+# Add parent directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from core.db_manager import DatabaseManager
 
 def monitor_progress(duration_seconds=300, check_interval=30):
     """

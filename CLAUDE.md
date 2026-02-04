@@ -16,26 +16,26 @@ The system uses YouTube Data API v3 for video search and Google Vertex AI Gemini
 
 ### Core Components
 
-**1. Database Layer (`db_manager.py`)**
+**1. Database Layer (`core/db_manager.py`)**
 - SQLite database with 4 tables:
   - `youtubers` - List of financial YouTubers
   - `search_tags` - Search keywords/tags
   - `videos` - Video metadata from YouTube API
   - `Youtuber_Financial_Data` - Gemini AI analysis results
 
-**2. Video Search (`youtube_search.py`)**
+**2. Video Search (`core/youtube_search.py`)**
 - `YouTubeSearcher` class for YouTube API interactions
 - `search_videos()` - Searches with age filter (default: 2+ years old)
 - `get_video_details()` - Fetches complete video metadata
 - `save_to_database()` - Stores results in database
 
-**3. AI Analysis (`gemini_analyzer.py`)**
+**3. AI Analysis (`core/gemini_analyzer.py`)**
 - `GeminiVideoAnalyzer` class for Gemini AI integration
 - `analyze_video()` - Returns list of stock analyses per video
 - `save_analysis_to_db()` - Stores multi-stock results with UUID
 - Supports analyzing multiple primary stocks per video
 
-**4. Data Import (`data_importer.py`)**
+**4. Data Import (`core/data_importer.py`)**
 - Imports YouTubers and tags from `youtuber.txt`
 - Format: Lines 1-10 = YouTuber names, Lines 11+ = comma-separated tags
 
@@ -90,10 +90,10 @@ cp .env.example .env
 ### Database Setup
 ```bash
 # Initialize database
-python3 db_manager.py
+python3 core/db_manager.py
 
 # Import YouTubers and tags
-python3 data_importer.py youtuber.txt
+python3 core/data_importer.py youtuber.txt
 ```
 
 ## Running the Analysis Pipeline
@@ -101,13 +101,13 @@ python3 data_importer.py youtuber.txt
 ### Complete Pipeline (Recommended)
 ```bash
 # 1. Import data
-python3 data_importer.py youtuber.txt
+python3 core/data_importer.py youtuber.txt
 
 # 2. Search videos (2+ years old)
-python3 youtube_search.py "YouTuber Name stock" --save-db --max-results 10 --min-age 2
+python3 core/youtube_search.py "YouTuber Name stock" --save-db --max-results 10 --min-age 2
 
 # 3. Analyze videos
-python3 gemini_analyzer.py --batch --limit 20
+python3 core/gemini_analyzer.py --batch --limit 20
 ```
 
 ### Individual Operations
@@ -115,22 +115,22 @@ python3 gemini_analyzer.py --batch --limit 20
 **Search videos:**
 ```bash
 # Basic search
-python3 youtube_search.py "tesla stock" --save-db
+python3 core/youtube_search.py "tesla stock" --save-db
 
 # Filter by age (2+ years)
-python3 youtube_search.py "nvidia analysis" --save-db --max-results 20 --min-age 2
+python3 core/youtube_search.py "nvidia analysis" --save-db --max-results 20 --min-age 2
 ```
 
 **Analyze videos:**
 ```bash
 # Single video
-python3 gemini_analyzer.py --video-id VIDEO_ID
+python3 core/gemini_analyzer.py --video-id VIDEO_ID
 
 # Batch analysis
-python3 gemini_analyzer.py --batch --limit 10
+python3 core/gemini_analyzer.py --batch --limit 10
 
 # Specific YouTuber
-python3 gemini_analyzer.py --batch --youtuber "Tom Nash" --limit 5
+python3 core/gemini_analyzer.py --batch --youtuber "Tom Nash" --limit 5
 ```
 
 ## API Quota Considerations
@@ -150,7 +150,7 @@ python3 gemini_analyzer.py --batch --youtuber "Tom Nash" --limit 5
 ## Database Query Examples
 
 ```python
-from db_manager import DatabaseManager
+from core.db_manager import DatabaseManager
 
 db = DatabaseManager()
 db.connect()
@@ -174,51 +174,81 @@ db.close()
 
 ```
 youtuber_analysis/
-├── db_manager.py              # Database operations
-├── youtube_search.py          # Video search with age filter
-├── gemini_analyzer.py         # AI analysis with multi-stock support
-├── data_importer.py           # Import YouTubers/tags
-├── gemini_importer.py         # Import pre-generated JSON results
-├── migrate_multi_stock.py     # Database migration script
-├── test_multi_stock.py        # Test suite for multi-stock system
-├── youtuber.txt               # YouTuber names + tags
-├── youtube_analysis.db        # SQLite database
-├── MIGRATION_REPORT.md        # Latest migration documentation
-└── .claude/
-    └── skills/
-        └── youtube-analysis-pipeline.md  # SOP skill
+├── core/                           # Core modules
+│   ├── __init__.py
+│   ├── db_manager.py              # Database operations
+│   ├── youtube_search.py          # Video search with age filter
+│   ├── gemini_analyzer.py         # AI analysis with multi-stock support
+│   ├── data_importer.py           # Import YouTubers/tags
+│   ├── gemini_importer.py         # Import pre-generated JSON results
+│   ├── stock_price_fetcher.py     # Fetch stock prices from Yahoo Finance
+│   └── comment_sentiment_analyzer.py  # Analyze comment sentiment
+│
+├── scripts/                        # Automation scripts
+│   ├── run_pipeline.py            # Automated pipeline to reach target
+│   ├── auto_report.py             # Progress monitoring
+│   ├── update_2year_return.py     # Update 2-year returns
+│   ├── update_3month_return.py    # Update 3-month returns
+│   ├── update_return_class.py     # Update return classifications
+│   └── update_prediction_accuracy.py  # Calculate prediction accuracy
+│
+├── utils/                          # Utility functions
+│   ├── generate_report.py         # Generate statistics report
+│   ├── monitor_progress.py        # Monitor analysis progress
+│   └── wait_for_target.py         # Wait for target completion
+│
+├── tests/                          # Test scripts
+│   └── test_database.py           # Database validation tests
+│
+├── migrations/                     # Historical database migrations
+│   ├── migrate_remove_duplicates.py
+│   └── migrate_remove_forward_number.py
+│
+├── docs/                           # Documentation
+│   ├── DATABASE_GUIDE.md
+│   ├── GEMINI_SETUP_GUIDE.md
+│   ├── TEST_REPORT.md
+│   ├── FINAL_ANALYSIS_REPORT.md
+│   └── PROJECT_COMPLETION_REPORT.md
+│
+├── CLAUDE.md                       # Project instructions for Claude Code
+├── README.md                       # Project README
+├── requirements.txt                # Python dependencies
+├── youtuber.txt                    # YouTuber names + search tags
+├── .env                           # API keys (not in git)
+└── *.db                           # SQLite database files
 ```
 
 ## Customization Reference
 
-### Modify Search Parameters (`youtube_search.py`)
+### Modify Search Parameters (`core/youtube_search.py`)
 - **Max results**: `--max-results` parameter (default: 10)
 - **Video age filter**: `--min-age` parameter (default: 2 years)
 - **Sort order**: Modify `order` parameter in `search_videos()` (line 60)
 
-### Modify Analysis Prompt (`gemini_analyzer.py`)
+### Modify Analysis Prompt (`core/gemini_analyzer.py`)
 - **Prompt location**: Lines 20-78 (`ANALYSIS_PROMPT`)
 - **Model**: `--model` parameter (default: gemini-2.0-flash-exp)
 - **Temperature**: Modify `GenerateContentConfig` (line 138)
 
 ### Add Financial Indicators
 To add new analysis fields:
-1. Update `ANALYSIS_PROMPT` in `gemini_analyzer.py`
-2. Add column to `Youtuber_Financial_Data` table in `db_manager.py`
+1. Update `ANALYSIS_PROMPT` in `core/gemini_analyzer.py`
+2. Add column to `Youtuber_Financial_Data` table in `core/db_manager.py`
 3. Update field mapping in `save_analysis_to_db()` method
 4. Run migration script to update existing database
 
 ## Testing
 
 ```bash
-# Run complete test suite
-python3 test_multi_stock.py
+# Run database validation test
+python3 tests/test_database.py
 
 # Test individual components
-python3 db_manager.py          # Database initialization
-python3 data_importer.py --help
-python3 youtube_search.py --help
-python3 gemini_analyzer.py --help
+python3 core/db_manager.py          # Database initialization
+python3 core/data_importer.py --help
+python3 core/youtube_search.py --help
+python3 core/gemini_analyzer.py --help
 ```
 
 ## Troubleshooting

@@ -8,7 +8,7 @@ import json
 import sys
 from pathlib import Path
 from typing import Dict, Any, List
-from db_manager import DatabaseManager
+from .db_manager import DatabaseManager
 
 
 def load_json_file(file_path: str) -> Dict[str, Any]:

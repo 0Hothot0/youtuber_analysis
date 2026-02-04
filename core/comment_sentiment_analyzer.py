@@ -8,9 +8,9 @@ import argparse
 from typing import Optional
 from dotenv import load_dotenv
 
-from youtube_search import YouTubeSearcher
-from gemini_analyzer import GeminiVideoAnalyzer
-from db_manager import DatabaseManager
+from .youtube_search import YouTubeSearcher
+from .gemini_analyzer import GeminiVideoAnalyzer
+from .db_manager import DatabaseManager
 
 # 載入環境變數
 load_dotenv()

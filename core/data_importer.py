@@ -6,7 +6,7 @@
 
 import csv
 from pathlib import Path
-from db_manager import DatabaseManager
+from .db_manager import DatabaseManager
 
 
 def read_youtuber_file(file_path: str = "youtuber.txt"):

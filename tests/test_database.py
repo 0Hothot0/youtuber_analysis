@@ -3,7 +3,13 @@
 測試腳本 - 驗證資料庫內容
 """
 
-from db_manager import DatabaseManager
+import sys
+from pathlib import Path
+
+# Add parent directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from core.db_manager import DatabaseManager
 
 def main():
     db = DatabaseManager()

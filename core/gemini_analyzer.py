@@ -12,7 +12,7 @@ from typing import Optional, Dict, List
 from dotenv import load_dotenv
 from google import genai
 from google.genai.types import Part, GenerateContentConfig
-from db_manager import DatabaseManager
+from .db_manager import DatabaseManager
 
 # 載入環境變數
 load_dotenv()

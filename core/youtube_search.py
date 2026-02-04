@@ -14,7 +14,7 @@ import isodate
 import pandas as pd
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
-from db_manager import DatabaseManager
+from .db_manager import DatabaseManager
 
 
 class YouTubeSearcher:
