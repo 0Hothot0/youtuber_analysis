@@ -38,11 +38,10 @@ This system analyzes 5 financial YouTubers' videos to extract stock recommendati
 ### 4. Time Series Data Export
 - **25 Excel files** (5 YouTubers × 5 periods)
 - **80/20 train/test split** with no temporal overlap
-- **13 standardized features** including:
+- **12 input features + 1 target variable (class)**
   - Engagement metrics (likes, comments, views)
   - Sentiment scores (video + comments)
   - Financial indicators
-  - Classification label
 - Z-score normalization for numerical features
 
 ## 📊 Dataset Statistics
@@ -154,7 +153,7 @@ Each Excel file contains 2 sheets:
 - **Training_Data** (80% - earlier videos)
 - **Test_Data** (20% - later videos)
 
-**13 Features:**
+**12 Input Features:**
 1. `like_number` - Video likes (standardized)
 2. `comment_number` - Video comments (standardized)
 3. `view_number` - Video views (standardized)
@@ -167,7 +166,9 @@ Each Excel file contains 2 sheets:
 10. `long_term_competitiveness` - Long-term outlook
 11. `short_term_focus` - Short-term focus indicator
 12. `stock_price_growth_trend` - Price trend analysis
-13. `class` - Classification label (1=correct, -1=incorrect)
+
+**Target Variable:**
+- `class` - Prediction accuracy (1=correct, -1=incorrect)
 
 ### Database Schema
 
