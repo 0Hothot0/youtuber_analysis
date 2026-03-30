@@ -39,3 +39,27 @@ Thumbs.db
 *.xlsx
 *.xls
 *.csv
+
+# Database backups
+*.db.backup*
+
+# Progress tracking files
+.comment_analysis_progress.json
+*.progress.json
+
+# Environment backups
+.env.backup*
+
+# Output directories
+exports/
+output/
+
+# YouTuber data directories (databases and processed data)
+joseph/
+tom_nash/
+fin_tek/
+invest_with_henry/
+paul_thomas/
+
+# Documentation (can be regenerated)
+docs/*.docx
