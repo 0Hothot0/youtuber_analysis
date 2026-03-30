@@ -219,7 +219,7 @@ This dataset is suitable for:
 - Recommended delay: 0.5 seconds between requests
 
 **Gemini API (optional):**
-- Uses Gemini 2.0 Flash (experimental)
+- Uses Gemini 3.1 Pro (experimental)
 - Rate limits apply - use delays between calls
 - Alternative: VADER for free sentiment analysis
 
