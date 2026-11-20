@@ -5,6 +5,10 @@ For each (YouTuber, period) the master rows of that YouTuber are copied to
 data/interim/<youtuber>/<period>.db and return_rate / class / during are
 recomputed from Yahoo Finance prices for that horizon.
 
+Comment-sentiment scores are never lost on a rebuild: scores already in the
+period database (or, if it is missing, in data/processed/comment_sentiment.csv)
+are carried over in place of the master database's values.
+
 Examples:
   python scripts/04_build_period_datasets.py                       # all 5 x 5
   python scripts/04_build_period_datasets.py --youtuber joseph
@@ -16,6 +20,7 @@ import argparse
 
 from youtuber_analysis import config
 from youtuber_analysis.dataset.build import build_period_db, relabel_period_db
+from youtuber_analysis.dataset.comments import read_backup, read_scores
 from youtuber_analysis.market.prices import StockPriceFetcher
 
 
@@ -41,8 +46,10 @@ def main() -> None:
                     print(f"{yt.name} / {period}: {relabel_period_db(target, threshold)} label(s) changed")
                 continue
             print(f"{yt.name} / {period} -> {target.relative_to(config.PROJECT_ROOT)}")
+            scores = read_backup(config.COMMENT_SENTIMENT_CSV, key, period)
+            scores.update(read_scores(target))  # existing database wins over the CSV
             stats = build_period_db(args.source, target, yt.channel_name, periods[period],
-                                    fetcher, threshold)
+                                    fetcher, threshold, comment_scores=scores)
             print(f"  {stats}")
 
 

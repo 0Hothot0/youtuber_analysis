@@ -42,6 +42,12 @@ compound score (−1 to 1) is stored as `comment_sentiment`. Videos with no
 comments score 0. VADER was chosen over an LLM because it is free, local and
 deterministic.
 
+The comment text is saved in the `comments` table so scores can be recomputed.
+(The scores in the published datasets were computed before this was added, so
+their source comments were not kept; the scores themselves are backed up in
+`data/processed/comment_sentiment.csv` and carried over whenever a dataset is
+rebuilt.)
+
 ## 5. Returns and labels
 
 For a horizon of *m* months (1, 3, 6, 12, 24):

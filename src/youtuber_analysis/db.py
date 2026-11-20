@@ -82,6 +82,17 @@ CREATE TABLE IF NOT EXISTS Youtuber_Financial_Data (
     UNIQUE(video_id, stock_ticker),
     FOREIGN KEY (video_id) REFERENCES videos(video_id)
 );
+
+-- Raw comment text fetched in step 3 (top comments in YouTube relevance order).
+CREATE TABLE IF NOT EXISTS comments (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    video_id     TEXT NOT NULL,
+    comment_rank INTEGER NOT NULL,     -- 1 = most relevant
+    text         TEXT NOT NULL,
+    fetched_at   TEXT DEFAULT (datetime('now')),
+    UNIQUE(video_id, comment_rank)
+);
+CREATE INDEX IF NOT EXISTS idx_comments_video_id ON comments(video_id);
 """
 
 ANALYSIS_FIELDS = [
@@ -162,5 +173,6 @@ def statistics(conn: sqlite3.Connection) -> dict[str, int]:
         "tags": "search_tags",
         "videos": "videos",
         "analyses": "Youtuber_Financial_Data",
+        "comments": "comments",
     }
     return {k: conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for k, t in tables.items()}

@@ -55,6 +55,19 @@ Gemini returns 0 for any indicator the video does not mention.
 | `videos` | YouTube metadata: title, channel, publish time, views, likes, comments, duration, thumbnails, the search query that found it |
 | `youtubers` | Channel titles (linked from `videos.youtuber_id`) |
 | `search_tags` | Search keywords from `config/search_tags.txt` |
+| `comments` | Raw comment text from step 3: `video_id`, `comment_rank` (1 = most relevant), `text`, `fetched_at` |
+
+## Comment-sentiment backup
+
+`data/processed/comment_sentiment.csv` – one row per YouTuber × horizon × (video, stock).
+
+| Column | Meaning |
+|---|---|
+| `youtuber` | YouTuber key (`joseph`, `tom_nash`, `fin_tek`, `henry`) |
+| `period` | Horizon (`1month` … `2years`) |
+| `video_id`, `stock_ticker` | Identify the record |
+| `published_time` | Video publish time |
+| `comment_sentiment` | Score used in the dataset (−1 … 1; 0 = none) |
 
 ## SVM result workbooks
 

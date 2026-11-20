@@ -3,6 +3,8 @@
 
 Output: data/processed/<youtuber>_<period>.xlsx with sheets Training_Data and
 Test_Data (12 features + class; see docs/data_dictionary.md).
+Also writes data/processed/comment_sentiment.csv, a backup of the
+comment-sentiment scores of every period database.
 
 Examples:
   python scripts/05_export_excel.py
@@ -12,6 +14,7 @@ Examples:
 import argparse
 
 from youtuber_analysis import config
+from youtuber_analysis.dataset.comments import write_backup
 from youtuber_analysis.dataset.export import export_excel
 
 
@@ -33,6 +36,10 @@ def main() -> None:
             n_train, n_test = export_excel(src, out, ds["features"], ds["target"], ds["standardize"],
                                            ds["train_ratio"], ds["random_state"])
             print(f"{out.name}: train={n_train} test={n_test}")
+
+    all_dbs = {(k, p): config.period_db_path(k, p) for k in keys for p in periods}
+    n = write_backup(all_dbs, config.COMMENT_SENTIMENT_CSV)
+    print(f"{config.COMMENT_SENTIMENT_CSV.name}: {n} rows")
 
 
 if __name__ == "__main__":

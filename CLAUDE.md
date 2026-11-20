@@ -15,3 +15,4 @@ Guidance for Claude Code in this repository. See README.md for the project overv
 - One parameterised script per step (`--youtuber`, `--period`); do not add per-YouTuber copies.
 - Labelling rule lives only in `market/labeling.py`.
 - Secrets go in `.env` (see `.env.example`); never commit it.
+- Comment-sentiment scores must never be lost: step 4 restores them from the existing period DB or `data/processed/comment_sentiment.csv`; keep that behaviour.

@@ -19,6 +19,9 @@ RESULTS_DIR = PROJECT_ROOT / "results"
 # Master database: every analysed video/stock pair for all YouTubers.
 MASTER_DB = RAW_DIR / "youtube_analysis.db"
 
+# Backup of every period database's comment-sentiment scores (tracked in git).
+COMMENT_SENTIMENT_CSV = PROCESSED_DIR / "comment_sentiment.csv"
+
 
 @dataclass(frozen=True)
 class Youtuber:

@@ -18,6 +18,7 @@ from dateutil.relativedelta import relativedelta
 
 from ..market.labeling import prediction_class
 from ..market.prices import parse_date
+from .comments import ScoreMap, apply_scores
 
 
 class ReturnSource(Protocol):
@@ -30,6 +31,7 @@ class BuildStats:
     failed: int = 0
     future: int = 0
     kept: int = 0
+    comment_scores_restored: int = 0
 
 
 def relabel_period_db(db_path: str | Path, threshold: float = 0.05) -> int:
@@ -57,7 +59,11 @@ def relabel_period_db(db_path: str | Path, threshold: float = 0.05) -> int:
 
 def build_period_db(source_db: str | Path, target_db: str | Path, channel_name: str,
                     months: int, returns: ReturnSource, threshold: float = 0.05,
-                    today: date | None = None) -> BuildStats:
+                    today: date | None = None,
+                    comment_scores: ScoreMap | None = None) -> BuildStats:
+    """``comment_scores`` - previously computed comment sentiment per
+    (video_id, stock_ticker); written over the master values so a rebuild
+    never loses them."""
     source_db, target_db = Path(source_db), Path(target_db)
     if not source_db.exists():
         raise FileNotFoundError(source_db)
@@ -74,6 +80,8 @@ def build_period_db(source_db: str | Path, target_db: str | Path, channel_name: 
             "(SELECT video_id FROM videos WHERE channel_name = ?)",
             (channel_name,),
         )
+        if comment_scores:
+            stats.comment_scores_restored = apply_scores(conn, comment_scores)
         rows = conn.execute(
             "SELECT id, stock_ticker, published_time, video_sentiment "
             "FROM Youtuber_Financial_Data WHERE stock_ticker IS NOT NULL"
