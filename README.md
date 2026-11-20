@@ -1,261 +1,194 @@
-# YouTuber Financial Analysis System
+# YouTuber Stock-Call Analysis
 
-A comprehensive system for analyzing financial YouTubers' stock recommendations and predicting their accuracy using AI-powered video analysis and sentiment analysis.
+**Do financial YouTubers' stock calls come true?**
+This project collects videos from five finance YouTubers, uses Gemini to extract
+which stocks each video discusses and how bullish or bearish it is, checks the
+stock's actual return 1 month to 2 years later, and builds labelled datasets
+for predicting whether a call will be correct. A linear soft-margin SVM is then
+trained on those datasets.
 
-## 🎯 Project Overview
+> Research and educational use only. Nothing here is financial advice.
 
-This system analyzes 5 financial YouTubers' videos to extract stock recommendations, evaluate comment sentiment, and predict recommendation accuracy over multiple time periods (1 month, 3 months, 6 months, 1 year, 2 years).
+## Contents
 
-**Analyzed YouTubers:**
-- Joseph Hogue (Let's Talk Money! with Joseph Hogue, CFA)
-- Tom Nash
-- Fin Tek
-- Invest with Henry
-- Paul Thomas Investing
+- [Pipeline](#pipeline)
+- [Repository layout](#repository-layout)
+- [Datasets](#datasets)
+- [Results](#results)
+- [Reproducing the pipeline](#reproducing-the-pipeline)
+- [Known issues](#known-issues)
 
-## ✨ Key Features
+## Pipeline
 
-### 1. AI-Powered Video Analysis
-- **Gemini 2.0 Flash** integration for multi-stock detection per video
-- Extracts 17 financial indicators including:
-  - Video sentiment, financial ratios, celebrity mentions
-  - Relevancy, long-term competitiveness, short-term focus
-  - Stock price growth trend
-- Supports multi-stock analysis (one video can discuss multiple stocks)
-
-### 2. Comment Sentiment Analysis
-- **VADER** sentiment analysis (free, no API costs)
-- Analyzes top 50 comments per video
-- Returns sentiment scores (-1 to +1)
-- Processed 1,327+ videos successfully
-
-### 3. Multi-Period Stock Return Tracking
-- Calculates actual stock returns over 5 time periods
-- Integrates with Yahoo Finance for historical prices
-- Binary classification: prediction correct (1) or incorrect (-1)
-- Threshold: ±5% for neutral predictions
-
-### 4. Time Series Data Export
-- **25 Excel files** (5 YouTubers × 5 periods)
-- **80/20 train/test split** with no temporal overlap
-- **12 input features + 1 target variable (class)**
-  - Engagement metrics (likes, comments, views)
-  - Sentiment scores (video + comments)
-  - Financial indicators
-- Z-score normalization for numerical features
-
-## 📊 Dataset Statistics
-
-| YouTuber | Total Videos | Unique Stocks | Data Range |
-|----------|--------------|---------------|------------|
-| Joseph Hogue | 466 | 247 | Dec 2022 - Jan 2024 |
-| Tom Nash | 123 | 32 | Mar 2023 - Jan 2024 |
-| Fin Tek | 114 | 35 | Nov 2023 - Jan 2024 |
-| Invest with Henry | 251 | 43 | Apr 2023 - Jan 2024 |
-| Paul Thomas | 66 | 31 | Jul 2022 - Jan 2024 |
-
-**Total:** 1,020 videos analyzing 388 unique stocks
-
-## 🛠️ Installation
-
-### Prerequisites
-- Python 3.12+
-- YouTube Data API v3 Key
-- Google Cloud Project with Vertex AI (optional, for Gemini analysis)
-
-### Setup
-
-```bash
-# Clone repository
-git clone https://github.com/0Hothot0/youtuber_analysis.git
-cd youtuber_analysis
-
-# Install dependencies
-pip install -r requirements.txt --user --break-system-packages
-
-# Configure environment
-cp .env.example .env
-# Edit .env and add:
-#   YOUTUBE_API_KEY=your_youtube_key
-#   GOOGLE_CLOUD_PROJECT=your_gcp_project (optional)
-#   GOOGLE_CLOUD_LOCATION=us-central1 (optional)
+```
+ YouTube Data API        Gemini 2.0 Flash        VADER              Yahoo Finance
+       │                       │                   │                      │
+ ┌─────▼──────┐   ┌────────────▼───────┐   ┌───────▼────────┐   ┌─────────▼────────┐   ┌──────────────┐
+ │ 1 collect  │──▶│ 2 analyse video    │──▶│ 3 comment      │──▶│ 4 build period   │──▶│ 5 export     │
+ │   videos   │   │   (1 row / stock)  │   │   sentiment    │   │   datasets       │   │   Excel      │
+ └────────────┘   └────────────────────┘   └────────────────┘   └──────────────────┘   └──────┬───────┘
+                         data/raw/youtube_analysis.db           data/interim/<yt>/<period>.db  │
+                                                                                               ▼
+                                                                     data/processed/*.xlsx ──▶ soft-margin SVM
+                                                                                               results/soft_margin_svm/
 ```
 
-## 🚀 Usage
+1. **Collect** – search each YouTuber's channel for videos at least 2 years old
+   (so that 2-year returns can be measured) and store their metadata.
+2. **Analyse video** – Gemini watches each video and returns one record per
+   *primary* stock with 17 indicators (sentiment, financial-ratio content,
+   celebrity mentions, long-/short-term focus, price-trend view, ...).
+3. **Comment sentiment** – average VADER score of the top 50 comments.
+4. **Build period datasets** – for each YouTuber × horizon
+   (1, 3, 6, 12, 24 months) compute the stock's return after the video and the
+   label `class`: **1** if the call was right, **−1** otherwise.
+5. **Export** – chronological 80/20 train/test split, z-score engagement counts,
+   write one Excel file per YouTuber × horizon.
 
-### Comment Sentiment Analysis (Free)
+The labelling rule (threshold 5%):
 
-```bash
-# Analyze all YouTubers
-python3 scripts/analyze_comments_free.py --youtuber all
+| Video sentiment | Return over horizon | `class` |
+|---|---|---|
+| bullish (> 0) | ≥ +5% | 1 |
+| neutral (= 0) | between −5% and +5% | 1 |
+| bearish (< 0) | ≤ −5% | 1 |
+| anything else | | −1 |
 
-# Analyze specific YouTuber
-python3 scripts/analyze_comments_free.py --youtuber joseph --period 1year
+See [docs/methodology.md](docs/methodology.md) for details.
 
-# Test mode (3 videos)
-python3 scripts/analyze_comments_free.py --youtuber joseph --limit 3
-```
-
-### Create Multi-Period Databases
-
-```bash
-# Create databases for specific YouTuber
-python3 scripts/create_multi_period_joseph.py
-python3 scripts/create_multi_period_tom_nash.py
-python3 scripts/create_multi_period_fintek.py
-python3 scripts/create_multi_period_henry.py
-python3 scripts/create_multi_period_paul.py
-```
-
-### Export to Excel
-
-```bash
-# Export all YouTubers with time series split
-python3 scripts/export_all_5periods_complete.py
-# Output: exports/all_5periods_timeseries/*.xlsx (25 files)
-```
-
-## 📁 Project Structure
+## Repository layout
 
 ```
 youtuber_analysis/
-├── core/                           # Core modules
-│   ├── db_manager.py              # Database operations
-│   ├── youtube_search.py          # YouTube API integration
-│   ├── gemini_analyzer.py         # Gemini AI video analysis
-│   ├── stock_price_fetcher.py     # Yahoo Finance integration
-│   └── comment_sentiment_analyzer.py
-│
-├── scripts/                        # Main scripts
-│   ├── analyze_comments_free.py   # VADER sentiment analysis
-│   ├── create_multi_period_*.py   # Database creation (5 YouTubers)
-│   ├── export_all_5periods_complete.py  # Excel export
-│   ├── update_*.py                # Database update utilities
-│   ├── deprecated/                # Experimental scripts
-│   └── utilities/                 # One-time utility scripts
-│
-├── docs/                          # Technical documentation
-├── exports/                       # Excel output files (gitignored)
-├── {youtuber}/                    # YouTuber databases (gitignored)
-│   └── youtube_analysis_{period}_single_{name}.db
-│
-├── CLAUDE.md                      # Claude Code instructions
-├── README.md                      # This file
-├── requirements.txt               # Python dependencies
-└── .gitignore                     # Git ignore rules
+├── config/
+│   ├── youtubers.yaml          # the 5 YouTubers (key, name, channel title)
+│   ├── settings.yaml           # horizons, 5% threshold, split, features
+│   └── search_tags.txt         # search keywords
+├── src/youtuber_analysis/      # Python package
+│   ├── config.py               # paths + config loading
+│   ├── db.py                   # SQLite schema and helpers
+│   ├── collect/youtube.py      # YouTube Data API client
+│   ├── analyze/gemini.py       # Gemini video analysis
+│   ├── analyze/sentiment.py    # VADER comment sentiment
+│   ├── market/prices.py        # Yahoo Finance prices and returns
+│   ├── market/labeling.py      # class label rule
+│   ├── dataset/build.py        # per-YouTuber, per-horizon databases
+│   └── dataset/export.py       # train/test split, scaling, Excel
+├── scripts/                    # one script per pipeline step, run in order
+│   ├── 00_init_db.py
+│   ├── 01_collect_videos.py
+│   ├── 02_analyze_videos.py
+│   ├── 03_comment_sentiment.py
+│   ├── 04_build_period_datasets.py
+│   └── 05_export_excel.py
+├── data/
+│   ├── raw/                    # master database (not in git)
+│   ├── interim/                # per-period databases (not in git)
+│   └── processed/              # 25 model-ready Excel files  ← in git
+├── results/
+│   └── soft_margin_svm/        # SVM workbooks per YouTuber and horizon  ← in git
+├── docs/
+│   ├── methodology.md
+│   └── data_dictionary.md
+└── tests/
 ```
 
-## 📈 Data Schema
+## Datasets
 
-### Excel Output Format
+Five YouTubers, videos published Jul 2022 – Jan 2024. One record = one
+(video, stock) pair, so a video discussing three stocks gives three records.
 
-Each Excel file contains 2 sheets:
-- **Training_Data** (80% - earlier videos)
-- **Test_Data** (20% - later videos)
+| Key | YouTuber | Records | Videos | Unique stocks | Published |
+|---|---|---:|---:|---:|---|
+| `joseph` | Let's Talk Money! with Joseph Hogue, CFA | 466 | 92 | 247 | Dec 2022 – Jan 2024 |
+| `tom_nash` | Tom Nash | 123 | 77 | 32 | Mar 2023 – Jan 2024 |
+| `fin_tek` | Fin Tek | 114 | 91 | 35 | Nov 2023 – Jan 2024 |
+| `henry` | Invest with Henry | 251 | 76 | 43 | Apr 2023 – Jan 2024 |
+| `paul` | Paul Thomas Investing | 66 | 40 | 31 | Jul 2022 – Jan 2024 |
+| | **Total** | **1,020** | **376** | | |
 
-**12 Input Features:**
-1. `like_number` - Video likes (standardized)
-2. `comment_number` - Video comments (standardized)
-3. `view_number` - Video views (standardized)
-4. `text_type` - Content type classification
-5. `video_sentiment` - AI-analyzed video sentiment (-1 to 1)
-6. `comment_sentiment` - VADER sentiment score (-1 to 1)
-7. `financial_ratio` - Financial metrics discussion
-8. `celebrity` - Celebrity/influencer mentions
-9. `relevancy` - Stock relevance to discussion
-10. `long_term_competitiveness` - Long-term outlook
-11. `short_term_focus` - Short-term focus indicator
-12. `stock_price_growth_trend` - Price trend analysis
+**`data/processed/<youtuber>_<horizon>.xlsx`** (25 files) – sheets
+`Training_Data` (earliest 80%) and `Test_Data` (latest 20%), each with 12
+features and the target `class`. Column definitions:
+[docs/data_dictionary.md](docs/data_dictionary.md).
 
-**Target Variable:**
-- `class` - Prediction accuracy (1=correct, -1=incorrect)
+**`results/soft_margin_svm/<youtuber>/<horizon>.xlsx`** – the trained linear
+soft-margin SVM for each dataset (`all/` pools Joseph, Tom Nash, Fin Tek and
+Henry). Sheet `train` holds the fitted weights `w`, bias `b`, slack `ksi` and
+objective value; sheet `test` holds each test row's decision value,
+predicted class and the resulting accuracy. There are no SVM results for Paul
+Thomas; his `comment_sentiment` column is all zeros (never collected).
 
-### Database Schema
+## Results
 
-**Primary Table:** `Youtuber_Financial_Data`
-- 28 fields including video metadata, AI analysis, stock data
-- Composite unique key: `(video_id, stock_ticker)`
-- `video_uuid` for grouping multi-stock videos
+### Share of correct calls (`class = 1`)
 
-## 🎓 Research Use Cases
-
-This dataset is suitable for:
-- **Machine Learning**: Binary classification of stock recommendation accuracy
-- **Sentiment Analysis**: Correlation between sentiment and stock performance
-- **Time Series Analysis**: Performance prediction across different periods
-- **Natural Language Processing**: Video content analysis
-- **Financial Analysis**: YouTuber recommendation patterns
-
-## 📊 Key Findings
-
-### Prediction Accuracy by Period
-
-| YouTuber | 1 Month | 3 Months | 6 Months | 1 Year | 2 Years |
-|----------|---------|----------|----------|--------|---------|
-| Joseph Hogue | 31.1% | 30.0% | 38.6% | 36.3% | **42.7%** |
-| Tom Nash | 41.5% | 55.3% | 37.4% | 45.5% | **94.3%** |
-| Fin Tek | 57.0% | 49.1% | 44.7% | **64.0%** | 58.8% |
+| YouTuber | 1 month | 3 months | 6 months | 1 year | 2 years |
+|---|---:|---:|---:|---:|---:|
+| Joseph Hogue | 31.1% | 30.0% | 38.6% | 36.3% | 42.7% |
+| Tom Nash ¹ | 41.5% | 35.8% | 37.4% | 45.5% | 55.3% |
+| Fin Tek | 57.0% | 49.1% | 44.7% | 64.0% | 58.8% |
 | Invest with Henry | 39.0% | 34.7% | 32.3% | 34.3% | 29.1% |
 | Paul Thomas | 25.8% | 18.2% | 18.2% | 15.2% | 24.2% |
 
-**Notable Insights:**
-- Tom Nash shows exceptional long-term accuracy (94.3% for 2-year predictions)
-- Fin Tek performs best at 1-year timeframe (64.0%)
-- Short-term predictions are generally less reliable across all YouTubers
+¹ Recomputed with the labelling rule. The shipped Tom Nash 3-month and 2-year
+files use a different label; see [Known issues](#known-issues).
 
-### Most Recommended Stocks
+### Soft-margin SVM test accuracy
 
-**Joseph Hogue:** TSLA (15), AAPL (12), SOFI (11)
-**Tom Nash:** TSLA (39), PLTR (35), NVDA (8)
-**Fin Tek:** SOFI (8), SNOW (8), CRWD (8)
-**Invest with Henry:** TSLA (37), AAPL (26), SPY (23)
-**Paul Thomas:** NIO (8), PSNY (7), ILUS (7)
+| Dataset | 1 month | 3 months | 6 months | 1 year | 2 years |
+|---|---:|---:|---:|---:|---:|
+| Joseph Hogue | 68.1% | 67.0% | 58.1% | 72.3% | 84.0% |
+| Tom Nash ¹ | 36.0% | 52.0% | 68.0% | 76.0% | 92.0% |
+| Fin Tek | 52.2% | 52.2% | 39.1% | 78.3% | 73.9% |
+| Invest with Henry | 72.5% | 76.0% | 76.0% | 84.3% | 88.2% |
+| All four pooled ¹ | 65.3% | 60.6% | 64.6% | 67.4% | 77.7% |
 
-## 🔧 API Quota Considerations
+¹ Tom Nash 3 months / 2 years (and the pooled sets that include them) were
+trained on the mislabelled files.
 
-**YouTube Data API v3:**
-- Daily limit: 10,000 units (default)
-- `search.list`: ~100 units per call
-- Recommended delay: 0.5 seconds between requests
+## Reproducing the pipeline
 
-**Gemini API (optional):**
-- Uses Gemini 3.1 Pro (experimental)
-- Rate limits apply - use delays between calls
-- Alternative: VADER for free sentiment analysis
+Requirements: Python 3.10+, a YouTube Data API v3 key and, for step 2, a
+Google Cloud project with Vertex AI enabled.
 
-## 📝 Documentation
+```bash
+git clone https://github.com/0Hothot0/youtuber_analysis.git
+cd youtuber_analysis
+pip install -e ".[dev]"
+cp .env.example .env        # fill in YOUTUBE_API_KEY and GOOGLE_CLOUD_PROJECT
+```
 
-Detailed documentation available in `/docs`:
-- Database cleanup procedures
-- Comment sentiment analysis guides
-- Excel export methodologies
-- YouTuber-specific reports
+```bash
+python scripts/00_init_db.py                       # create data/raw/youtube_analysis.db
+python scripts/01_collect_videos.py --youtuber all # search videos (uses API quota)
+python scripts/02_analyze_videos.py --limit 50     # Gemini analysis
+python scripts/03_comment_sentiment.py             # VADER comment sentiment
+python scripts/04_build_period_datasets.py         # returns + labels, 5 YouTubers x 5 horizons
+python scripts/05_export_excel.py                  # data/processed/*.xlsx
+```
 
-## 🤝 Contributing
+Every script accepts `--help`. Steps 4 and 5 take `--youtuber <key|all>` and
+`--period <1month|3months|6months|1year|2years|all>`.
 
-This is a research project. For questions or collaboration:
-1. Open an issue on GitHub
-2. Review existing documentation in `/docs`
-3. Check CLAUDE.md for project instructions
+Run the tests with `pytest`.
 
-## ⚠️ Disclaimer
+**API quota.** YouTube allows 10,000 units/day; a search costs ~100 units and a
+comment page ~1 unit. Gemini calls are spaced 2 s apart and retried up to 3
+times.
 
-This project is for research and educational purposes only. Stock recommendations from YouTubers should not be considered financial advice. Past performance does not guarantee future results.
+## Known issues
 
-## 📜 License
+- **Tom Nash 3-month and 2-year labels.** In these two datasets `class` was
+  computed as `1 if return > 0 else -1` instead of the sentiment-vs-return rule
+  above (all 123 rows match that rule exactly). This inflates the 2-year share
+  of correct calls from 55.3% to 94.3%. The returns themselves are correct, so
+  the labels can be recomputed without re-downloading prices.
+- **Comment sentiment differs slightly across horizons** for some videos,
+  because it was originally fetched separately for each horizon on different
+  days. The pipeline now computes it once on the master database (step 3) so
+  every horizon shares the same value.
 
-This project is for academic and research use.
+## Acknowledgements
 
-## 🙏 Acknowledgments
-
-- YouTube Data API v3 for video metadata
-- Google Vertex AI Gemini for video analysis
-- VADER Sentiment for comment analysis
-- Yahoo Finance for stock price data
-- Claude Code (Anthropic) for development assistance
-
----
-
-**Last Updated:** March 2026
-**Repository:** https://github.com/0Hothot0/youtuber_analysis
-**Branch:** dev
+YouTube Data API v3 · Google Vertex AI Gemini · VADER Sentiment · Yahoo Finance (yfinance)

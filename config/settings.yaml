@@ -1,0 +1,45 @@
+# Evaluation horizons: name -> months after the video was published
+periods:
+  1month: 1
+  3months: 3
+  6months: 6
+  1year: 12
+  2years: 24
+
+labeling:
+  # A prediction counts as correct (class = 1) when
+  #   video_sentiment > 0  and return >=  return_threshold
+  #   video_sentiment == 0 and |return| < return_threshold
+  #   video_sentiment < 0  and return <= -return_threshold
+  # Otherwise class = -1.
+  return_threshold: 0.05
+
+dataset:
+  train_ratio: 0.8      # chronological split: earliest 80% -> train, latest 20% -> test
+  random_state: 42      # seed for shuffling rows inside each split
+  features:
+    - like_number
+    - comment_number
+    - view_number
+    - text_type
+    - video_sentiment
+    - comment_sentiment
+    - financial_ratio
+    - celebrity
+    - relevancy
+    - long_term_competitiveness
+    - short_term_focus
+    - stock_price_growth_trend
+  target: class
+  standardize:          # z-score, scaler fitted on the training split only
+    - like_number
+    - comment_number
+    - view_number
+
+collection:
+  min_video_age_years: 2
+  max_results_per_search: 10
+  youtube_delay_seconds: 0.5
+  gemini_model: gemini-2.0-flash-exp
+  gemini_delay_seconds: 2
+  max_comments: 50
