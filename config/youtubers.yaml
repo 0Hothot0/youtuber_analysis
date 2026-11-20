@@ -1,0 +1,18 @@
+# The four financial YouTubers studied in this project.
+#
+#   key          short identifier used in CLI flags and file names
+#   name         display name
+#   channel_name exact YouTube channel title, as stored in videos.channel_name
+youtubers:
+  - key: joseph
+    name: Joseph Hogue
+    channel_name: "Let's Talk Money! with Joseph Hogue, CFA"
+  - key: tom_nash
+    name: Tom Nash
+    channel_name: Tom Nash
+  - key: fin_tek
+    name: Fin Tek
+    channel_name: Fin Tek
+  - key: henry
+    name: Invest with Henry
+    channel_name: Invest with Henry
