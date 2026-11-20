@@ -58,7 +58,7 @@ Gemini returns 0 for any indicator the video does not mention.
 
 ## SVM result workbooks
 
-`results/soft_margin_svm/<dataset>/<period>.xlsx`, where `<dataset>` is
+`results/soft_margin_svm/<dataset>/<period>.xlsx` (solved in LINGO), where `<dataset>` is
 `joseph`, `tom_nash`, `fin_tek`, `henry` or `all`.
 
 | Sheet | Content |

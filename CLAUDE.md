@@ -7,7 +7,7 @@ Guidance for Claude Code in this repository. See README.md for the project overv
 - `scripts/00_…05_*.py` – pipeline steps, run in numeric order; thin CLIs over the package
 - `config/*.yaml` – YouTubers, horizons, threshold, features. Change settings here, not in code.
 - `data/raw`, `data/interim` – SQLite databases (gitignored). `data/processed` – exported Excel (tracked).
-- `results/soft_margin_svm/` – SVM workbooks (tracked, produced outside this codebase)
+- `results/soft_margin_svm/` – SVM results solved in LINGO (tracked, produced outside this codebase)
 
 ## Conventions
 - Install with `pip install -e ".[dev]"`; run tests with `pytest`.

@@ -1,11 +1,11 @@
 # YouTuber Stock-Call Analysis
 
 **Do financial YouTubers' stock calls come true?**
-This project collects videos from five finance YouTubers, uses Gemini to extract
+This project collects videos from four finance YouTubers, uses Gemini to extract
 which stocks each video discusses and how bullish or bearish it is, checks the
 stock's actual return 1 month to 2 years later, and builds labelled datasets
-for predicting whether a call will be correct. A linear soft-margin SVM is then
-trained on those datasets.
+for predicting whether a call will be correct. A linear soft-margin SVM, solved
+in LINGO, is then trained on those datasets.
 
 > Research and educational use only. Nothing here is financial advice.
 
@@ -61,7 +61,7 @@ See [docs/methodology.md](docs/methodology.md) for details.
 ```
 youtuber_analysis/
 ├── config/
-│   ├── youtubers.yaml          # the 5 YouTubers (key, name, channel title)
+│   ├── youtubers.yaml          # the 4 YouTubers (key, name, channel title)
 │   ├── settings.yaml           # horizons, 5% threshold, split, features
 │   └── search_tags.txt         # search keywords
 ├── src/youtuber_analysis/      # Python package
@@ -84,9 +84,9 @@ youtuber_analysis/
 ├── data/
 │   ├── raw/                    # master database (not in git)
 │   ├── interim/                # per-period databases (not in git)
-│   └── processed/              # 25 model-ready Excel files  ← in git
+│   └── processed/              # 20 model-ready Excel files  ← in git
 ├── results/
-│   └── soft_margin_svm/        # SVM workbooks per YouTuber and horizon  ← in git
+│   └── soft_margin_svm/        # LINGO SVM results per YouTuber and horizon  ← in git
 ├── docs/
 │   ├── methodology.md
 │   └── data_dictionary.md
@@ -95,7 +95,7 @@ youtuber_analysis/
 
 ## Datasets
 
-Five YouTubers, videos published Jul 2022 – Jan 2024. One record = one
+Four YouTubers, videos published Dec 2022 – Jan 2024. One record = one
 (video, stock) pair, so a video discussing three stocks gives three records.
 
 | Key | YouTuber | Records | Videos | Unique stocks | Published |
@@ -104,20 +104,18 @@ Five YouTubers, videos published Jul 2022 – Jan 2024. One record = one
 | `tom_nash` | Tom Nash | 123 | 77 | 32 | Mar 2023 – Jan 2024 |
 | `fin_tek` | Fin Tek | 114 | 91 | 35 | Nov 2023 – Jan 2024 |
 | `henry` | Invest with Henry | 251 | 76 | 43 | Apr 2023 – Jan 2024 |
-| `paul` | Paul Thomas Investing | 66 | 40 | 31 | Jul 2022 – Jan 2024 |
-| | **Total** | **1,020** | **376** | | |
+| | **Total** | **954** | **336** | | |
 
-**`data/processed/<youtuber>_<horizon>.xlsx`** (25 files) – sheets
+**`data/processed/<youtuber>_<horizon>.xlsx`** (20 files) – sheets
 `Training_Data` (earliest 80%) and `Test_Data` (latest 20%), each with 12
 features and the target `class`. Column definitions:
 [docs/data_dictionary.md](docs/data_dictionary.md).
 
-**`results/soft_margin_svm/<youtuber>/<horizon>.xlsx`** – the trained linear
-soft-margin SVM for each dataset (`all/` pools Joseph, Tom Nash, Fin Tek and
-Henry). Sheet `train` holds the fitted weights `w`, bias `b`, slack `ksi` and
-objective value; sheet `test` holds each test row's decision value,
-predicted class and the resulting accuracy. There are no SVM results for Paul
-Thomas; his `comment_sentiment` column is all zeros (never collected).
+**`results/soft_margin_svm/<youtuber>/<horizon>.xlsx`** – the linear
+soft-margin SVM for each dataset, solved in LINGO (`all/` pools the four
+YouTubers). Sheet `train` holds the fitted weights `w`, bias `b`, slack `ksi`
+and objective value; sheet `test` holds each test row's decision value,
+predicted class and the resulting accuracy.
 
 ## Results
 
@@ -126,26 +124,22 @@ Thomas; his `comment_sentiment` column is all zeros (never collected).
 | YouTuber | 1 month | 3 months | 6 months | 1 year | 2 years |
 |---|---:|---:|---:|---:|---:|
 | Joseph Hogue | 31.1% | 30.0% | 38.6% | 36.3% | 42.7% |
-| Tom Nash ¹ | 41.5% | 35.8% | 37.4% | 45.5% | 55.3% |
+| Tom Nash | 41.5% | 35.8% | 37.4% | 45.5% | 55.3% |
 | Fin Tek | 57.0% | 49.1% | 44.7% | 64.0% | 58.8% |
 | Invest with Henry | 39.0% | 34.7% | 32.3% | 34.3% | 29.1% |
-| Paul Thomas | 25.8% | 18.2% | 18.2% | 15.2% | 24.2% |
-
-¹ Recomputed with the labelling rule. The shipped Tom Nash 3-month and 2-year
-files use a different label; see [Known issues](#known-issues).
 
 ### Soft-margin SVM test accuracy
 
 | Dataset | 1 month | 3 months | 6 months | 1 year | 2 years |
 |---|---:|---:|---:|---:|---:|
 | Joseph Hogue | 68.1% | 67.0% | 58.1% | 72.3% | 84.0% |
-| Tom Nash ¹ | 36.0% | 52.0% | 68.0% | 76.0% | 92.0% |
+| Tom Nash | 36.0% | 52.0% ¹ | 68.0% | 76.0% | 92.0% ¹ |
 | Fin Tek | 52.2% | 52.2% | 39.1% | 78.3% | 73.9% |
 | Invest with Henry | 72.5% | 76.0% | 76.0% | 84.3% | 88.2% |
-| All four pooled ¹ | 65.3% | 60.6% | 64.6% | 67.4% | 77.7% |
+| All four pooled | 65.3% | 60.6% ¹ | 64.6% | 67.4% | 77.7% ¹ |
 
-¹ Tom Nash 3 months / 2 years (and the pooled sets that include them) were
-trained on the mislabelled files.
+¹ Trained on the earlier, mislabelled Tom Nash 3-month and 2-year data; to be
+re-run in LINGO. See [Known issues](#known-issues).
 
 ## Reproducing the pipeline
 
@@ -164,7 +158,7 @@ python scripts/00_init_db.py                       # create data/raw/youtube_ana
 python scripts/01_collect_videos.py --youtuber all # search videos (uses API quota)
 python scripts/02_analyze_videos.py --limit 50     # Gemini analysis
 python scripts/03_comment_sentiment.py             # VADER comment sentiment
-python scripts/04_build_period_datasets.py         # returns + labels, 5 YouTubers x 5 horizons
+python scripts/04_build_period_datasets.py         # returns + labels, 4 YouTubers x 5 horizons
 python scripts/05_export_excel.py                  # data/processed/*.xlsx
 ```
 
@@ -179,11 +173,14 @@ times.
 
 ## Known issues
 
-- **Tom Nash 3-month and 2-year labels.** In these two datasets `class` was
-  computed as `1 if return > 0 else -1` instead of the sentiment-vs-return rule
-  above (all 123 rows match that rule exactly). This inflates the 2-year share
-  of correct calls from 55.3% to 94.3%. The returns themselves are correct, so
-  the labels can be recomputed without re-downloading prices.
+- **Tom Nash 3-month and 2-year labels (fixed in the data, SVM pending).**
+  These two datasets were originally labelled `1 if return > 0` instead of the
+  sentiment-vs-return rule, which put the 2-year share of correct calls at
+  94.3% instead of 55.3%. The labels in `data/processed/` have been recomputed
+  from the stored returns (`04_build_period_datasets.py --relabel-only`, 54 of
+  123 rows changed in each). The LINGO SVM results for `tom_nash/3months`,
+  `tom_nash/2years`, `all/3months` and `all/2years` still come from the old
+  labels and need to be re-run.
 - **Comment sentiment differs slightly across horizons** for some videos,
   because it was originally fetched separately for each horizon on different
   days. The pipeline now computes it once on the master database (step 3) so

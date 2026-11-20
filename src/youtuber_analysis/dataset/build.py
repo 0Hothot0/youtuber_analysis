@@ -32,6 +32,29 @@ class BuildStats:
     kept: int = 0
 
 
+def relabel_period_db(db_path: str | Path, threshold: float = 0.05) -> int:
+    """Recompute ``class`` from the stored ``return_rate`` (no price download).
+
+    Returns the number of rows whose label changed.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT id, video_sentiment, return_rate, class FROM Youtuber_Financial_Data "
+            "WHERE return_rate IS NOT NULL"
+        ).fetchall()
+        changed = 0
+        for row_id, sentiment, ret, old in rows:
+            new = prediction_class(sentiment, ret, threshold)
+            if new != old:
+                conn.execute("UPDATE Youtuber_Financial_Data SET class = ? WHERE id = ?", (new, row_id))
+                changed += 1
+        conn.commit()
+        return changed
+    finally:
+        conn.close()
+
+
 def build_period_db(source_db: str | Path, target_db: str | Path, channel_name: str,
                     months: int, returns: ReturnSource, threshold: float = 0.05,
                     today: date | None = None) -> BuildStats:

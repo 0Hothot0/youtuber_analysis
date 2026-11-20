@@ -9,15 +9,15 @@ given horizon.
 
 ## 2. Sample
 
-* **YouTubers (5):** Let's Talk Money! with Joseph Hogue, CFA; Tom Nash; Fin Tek;
-  Invest with Henry; Paul Thomas Investing (`config/youtubers.yaml`).
+* **YouTubers (4):** Let's Talk Money! with Joseph Hogue, CFA; Tom Nash; Fin Tek;
+  Invest with Henry (`config/youtubers.yaml`).
 * **Videos:** found with the YouTube Data API v3 `search.list` endpoint, querying
   `"<YouTuber name> <keyword>"` and keeping only videos published at least two
   years before the search date, so that a 2-year return is observable.
 * **Unit of analysis:** a (video, stock) pair. A video discussing several stocks
   produces several records sharing one `video_uuid`. The pair
   `(video_id, stock_ticker)` is unique.
-* **Final sample:** 1,020 records from 376 videos, published Jul 2022 – Jan 2024.
+* **Final sample:** 954 records from 336 videos, published Dec 2022 – Jan 2024.
 
 ## 3. Video content features (Gemini)
 
@@ -61,7 +61,7 @@ For a horizon of *m* months (1, 3, 6, 12, 24):
 | < 0 (bearish) | ≤ −0.05 | 1 |
 | otherwise | | −1 |
 
-This produces 25 datasets (5 YouTubers × 5 horizons), stored as
+This produces 20 datasets (4 YouTubers × 5 horizons), stored as
 `data/interim/<youtuber>/<period>.db`.
 
 ## 6. Model-ready datasets
@@ -82,8 +82,9 @@ This produces 25 datasets (5 YouTubers × 5 horizons), stored as
 
 ## 7. Classifier
 
-A linear soft-margin support vector machine is fitted to each training set and
-evaluated on the corresponding test set. The workbooks in
+A linear soft-margin support vector machine is formulated as an optimisation
+model and solved in LINGO for each training set, then evaluated on the
+corresponding test set. The workbooks in
 `results/soft_margin_svm/` contain the fitted weight vector `w` (one weight per
 feature), bias `b`, slack variables `ksi`, the objective value, each test row's
 decision value and predicted class, and the test accuracy. Datasets: each of

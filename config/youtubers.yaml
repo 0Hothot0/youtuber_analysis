@@ -1,4 +1,4 @@
-# The five financial YouTubers studied in this project.
+# The four financial YouTubers studied in this project.
 #
 #   key          short identifier used in CLI flags and file names
 #   name         display name
@@ -16,6 +16,3 @@ youtubers:
   - key: henry
     name: Invest with Henry
     channel_name: Invest with Henry
-  - key: paul
-    name: Paul Thomas
-    channel_name: Paul Thomas Investing

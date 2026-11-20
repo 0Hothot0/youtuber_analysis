@@ -9,12 +9,13 @@ Examples:
   python scripts/04_build_period_datasets.py                       # all 5 x 5
   python scripts/04_build_period_datasets.py --youtuber joseph
   python scripts/04_build_period_datasets.py --youtuber henry --period 1year
+  python scripts/04_build_period_datasets.py --relabel-only   # re-apply the label rule, no download
 """
 
 import argparse
 
 from youtuber_analysis import config
-from youtuber_analysis.dataset.build import build_period_db
+from youtuber_analysis.dataset.build import build_period_db, relabel_period_db
 from youtuber_analysis.market.prices import StockPriceFetcher
 
 
@@ -24,15 +25,21 @@ def main() -> None:
     parser.add_argument("--youtuber", choices=[*keys, "all"], default="all")
     parser.add_argument("--period", choices=[*periods, "all"], default="all")
     parser.add_argument("--source", default=str(config.MASTER_DB), help="master database")
+    parser.add_argument("--relabel-only", action="store_true",
+                        help="recompute class from the stored return_rate of existing period databases")
     args = parser.parse_args()
 
     threshold = config.settings()["labeling"]["return_threshold"]
-    fetcher = StockPriceFetcher()
+    fetcher = None if args.relabel_only else StockPriceFetcher()
 
     for key in config.resolve_choice(args.youtuber, keys):
         yt = config.youtubers()[key]
         for period in config.resolve_choice(args.period, list(periods)):
             target = config.period_db_path(key, period)
+            if args.relabel_only:
+                if target.exists():
+                    print(f"{yt.name} / {period}: {relabel_period_db(target, threshold)} label(s) changed")
+                continue
             print(f"{yt.name} / {period} -> {target.relative_to(config.PROJECT_ROOT)}")
             stats = build_period_db(args.source, target, yt.channel_name, periods[period],
                                     fetcher, threshold)
